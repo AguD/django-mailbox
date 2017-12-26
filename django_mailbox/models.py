@@ -29,6 +29,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils.timezone import now
 from django.utils.encoding import python_2_unicode_compatible
+from django.conf import settings
 
 from django_mailbox import utils
 from django_mailbox.signals import message_received
@@ -48,14 +49,10 @@ class ActiveMailboxManager(models.Manager):
 
 @python_2_unicode_compatible
 class Mailbox(models.Model):
-    name = models.CharField(
-        _(u'Name'),
-        max_length=255,
-    )
+    name = models.CharField(_(u'Name'), max_length=255)
 
     uri = models.CharField(
-        _(u'URI'),
-        max_length=255,
+        _(u'URI'), max_length=255, blank=True,
         help_text=(_(
             "Example: imap+ssl://myusername:mypassword@someserver <br />"
             "<br />"
@@ -66,14 +63,10 @@ class Mailbox(models.Model):
             "Be sure to urlencode your username and password should they "
             "contain illegal characters (like @, :, etc)."
         )),
-        blank=True,
-        null=True,
-        default=None,
     )
 
     from_email = models.CharField(
-        _(u'From email'),
-        max_length=255,
+        _(u'From email'), max_length=255, blank=True,
         help_text=(_(
             "Example: MailBot &lt;mailbot@yourdomain.com&gt;<br />"
             "'From' header to set for outgoing email.<br />"
@@ -83,13 +76,10 @@ class Mailbox(models.Model):
             "If you send e-mail without setting this, your 'From' header will'"
             "be set to match the setting `DEFAULT_FROM_EMAIL`."
         )),
-        blank=True,
-        null=True,
-        default=None,
     )
 
     active = models.BooleanField(
-        _(u'Active'),
+        _(u'Active'), blank=True, default=True,
         help_text=(_(
             "Check this e-mail inbox for new e-mail messages during polling "
             "cycles.  This checkbox does not have an effect upon whether "
@@ -97,17 +87,13 @@ class Mailbox(models.Model):
             "pipe, and does not affect whether e-mail messages can be "
             "dispatched from this mailbox. "
         )),
-        blank=True,
-        default=True,
     )
 
     last_polling = models.DateTimeField(
-        _(u"Last polling"),
+        _(u"Last polling"), blank=True, null=True,
         help_text=(_("The time of last successful polling for messages."
                      "It is blank for new mailboxes and is not set for "
                      "mailboxes that only receive messages via a pipe.")),
-        blank=True,
-        null=True
     )
 
     objects = models.Manager()
@@ -452,74 +438,32 @@ class UnreadMessageManager(models.Manager):
 @python_2_unicode_compatible
 class Message(models.Model):
     mailbox = models.ForeignKey(
-        Mailbox,
-        related_name='messages',
-        verbose_name=_(u'Mailbox'),
-        on_delete=models.CASCADE
-    )
-
-    subject = models.CharField(
-        _(u'Subject'),
-        max_length=255
-    )
-
-    message_id = models.CharField(
-        _(u'Message ID'),
-        max_length=255
-    )
-
+        Mailbox, related_name='messages', verbose_name=_(u'Mailbox'),
+        on_delete=models.CASCADE)
+    subject = models.CharField(_(u'Subject'), max_length=255)
+    message_id = models.CharField(_(u'Message ID'), max_length=255)
     in_reply_to = models.ForeignKey(
-        'django_mailbox.Message',
-        related_name='replies',
-        blank=True,
-        null=True,
-        verbose_name=_(u'In reply to'),
-        on_delete=models.CASCADE
-    )
-
-    from_header = models.CharField(
-        _('From header'),
-        max_length=255,
-    )
-
-    to_header = models.TextField(
-        _(u'To header'),
-    )
-
-    outgoing = models.BooleanField(
-        _(u'Outgoing'),
-        default=False,
-        blank=True,
-    )
-
-    body = models.TextField(
-        _(u'Body'),
-    )
-
-    encoded = models.BooleanField(
-        _(u'Encoded'),
-        default=False,
-        help_text=_('True if the e-mail body is Base64 encoded'),
-    )
-
-    processed = models.DateTimeField(
-        _('Processed'),
-        auto_now_add=True
-    )
-
-    read = models.DateTimeField(
-        _(u'Read'),
-        default=None,
-        blank=True,
-        null=True,
-    )
-
+        'django_mailbox.Message', related_name='replies', blank=True,
+        null=True, verbose_name=_(u'In reply to'), on_delete=models.CASCADE)
+    from_header = models.CharField(_('From header'), max_length=255)
+    to_header = models.TextField(_(u'To header'))
+    outgoing = models.BooleanField(_(u'Outgoing'), default=False)
+    body = models.TextField(_(u'Body'))
+    encoded = models.BooleanField(_(u'Encoded'), default=False, help_text=_(
+        'True if the e-mail body is Base64 encoded'))
+    processed = models.DateTimeField(_('Processed'), auto_now_add=True)
+    read = models.DateTimeField(_(u'Read'), blank=True, null=True)
     eml = models.FileField(
-        _(u'Raw message contents'),
-        null=True,
-        upload_to="messages",
+        _(u'Raw message contents'), null=True, upload_to="messages",
         help_text=_(u'Original full content of message')
     )
+    parsed = models.BooleanField(_(u'Parsed'), default=False)
+    # DELIVERY STATUS NOTIFICATION email
+    is_dsn = models.BooleanField(_(u'Is DSN'), default=False)
+    from_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, verbose_name=_(u'From user'),
+        on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        help_text=_(u'When applicable indicates the User sender of the email'))
     objects = models.Manager()
     unread_messages = UnreadMessageManager()
     incoming_messages = IncomingMessageManager()
