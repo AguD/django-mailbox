@@ -84,16 +84,23 @@ class MessageAdmin(admin.ModelAdmin):
         'subject',
         'processed',
         'read',
+        'parsed',
+        'is_dsn',
         'mailbox',
         'outgoing',
-        'attachment_count',
     )
     ordering = ['-processed']
     list_filter = (
         'mailbox',
         'outgoing',
         'processed',
+        'parsed',
         'read',
+    )
+    search_fields = (
+        'id',
+        'from_user__username'
+        'from_user__email'
     )
     exclude = (
         'body',
@@ -105,6 +112,7 @@ class MessageAdmin(admin.ModelAdmin):
         'envelope_headers',
         'text',
         'html',
+        'from_user',
     )
     actions = [resend_message_received_signal]
 
