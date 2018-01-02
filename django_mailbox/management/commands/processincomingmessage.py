@@ -16,16 +16,25 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Command(BaseCommand):
-    args = "<[Mailbox Name (optional)]>"
-    command = "Receive incoming mail via stdin"
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '-mbox', '--mailbox',
+            type=str,
+            help='Mailbox name to which Messages will be added to',
+        )
 
-    def handle(self, mailbox_name=None, *args, **options):
+    def handle(self, *args, **options):
         message = email.message_from_string(sys.stdin.read())
+        mbox = options.get('mailbox')
         if message:
-            if mailbox_name:
-                mailbox = self.get_mailbox_by_name(mailbox_name)
+            if mbox:
+                mailbox = self.get_mailbox_by_name(mbox)
             else:
                 mailbox = self.get_mailbox_for_message(message)
+            logger.info(
+                "Processing message for %s",
+                mailbox.name
+            )
             mailbox.process_incoming_message(message)
             logger.info(
                 "Message received from %s",
@@ -36,7 +45,7 @@ class Command(BaseCommand):
 
     def get_mailbox_by_name(self, name):
         mailbox, created = Mailbox.objects.get_or_create(
-            name=name,
+            name__iexact=name,
         )
         return mailbox
 
